@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  logo        String?
+  users       User[]
+  categories  Category[]
+  products    Product[]
+  warehouses  Warehouse[]
+  exports Export[]
+  dillers     Diller[]
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt     @map("updated_at")
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String?   @unique
+  password  String
+  username  String
+  diller    Diller?  
+  role      UserRole @default(ADMIN)
+  companyId String   @map("company_id")
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  exports Export[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+  @@unique([email, companyId])      
+  @@unique([username, companyId])
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  DILLER
+}
+
+model Category {
+  id              String           @id @default(uuid())
+  name            String
+  url             String
+  image           String
+  companyId       String           @map("company_id")
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products        Product[]
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt      @map("updated_at")
+
+  @@unique([name, companyId])
+  @@unique([url, companyId])
+  @@map("categories")
+}
+
+
+model Product {
+  id         String                  @id @default(uuid())
+  name       String
+  url        String
+  images     String[]
+  totalQuantity Int              @default(0) @map("total_quantity")  
+  companyId  String                  @map("company_id")
+  company    Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId String                  @map("category_id")
+  category   Category                @relation(fields: [categoryId], references: [id])
+  characteristics      ProductCharacteristic[]
+  warehouseProducts WarehouseProduct[]
+  exportItems ExportItem[]
+  createdAt  DateTime                @default(now()) @map("created_at")
+  updatedAt  DateTime                @updatedAt      @map("updated_at")
+
+  @@unique([name, companyId])
+  @@unique([url, companyId])
+  @@map("products")
+}
+
+model ProductCharacteristic {
+  id               String         @id @default(uuid())
+  title            String
+  value            String
+  productId        String         @map("product_id")
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@map("product_characteristics")
+}
+
+
+model Warehouse {
+  id          String             @id @default(uuid())
+  name        String
+  manager     String?
+  phone       String 
+  address     String
+  companyId   String             @map("company_id")
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  warehouseProducts WarehouseProduct[]   
+  exports Export[]
+
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt      @map("updated_at")
+
+  @@unique([name, companyId])
+  @@map("warehouses")
+}
+
+model WarehouseProduct {
+  id          String    @id @default(uuid())     
+
+  warehouseId String    @map("warehouse_id")
+  productId   String    @map("product_id")
+
+  quantity    Int       @default(0)
+
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt      @map("updated_at")
+
+  @@unique([warehouseId, productId])  
+  @@map("warehouse_products")
+}
+
+model Diller {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String
+  companyId String    @map("company_id")
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt      @map("updated_at")
+}
+
+model Export {
+  id          String         @id @default(uuid())
+  warehouseId String         @map("warehouse_id")
+  warehouse   Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  dillerUserId String        @map("diller_user_id")
+  diller      User           @relation(fields: [dillerUserId], references: [id], onDelete: Cascade)
+  companyId   String         @map("company_id")
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       ExportItem[]
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@map("exports")
+}
+
+model ExportItem {
+  id         String   @id @default(uuid())
+  exportId   String   @map("export_id")
+  export     Export   @relation(fields: [exportId], references: [id], onDelete: Cascade)
+  productId  String   @map("product_id")
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+
+  @@map("export_items")
+}
+
+enum Status {
+  PENDING
+  ACCEPTED
+  CANCELED
+}
